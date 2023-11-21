@@ -1,5 +1,6 @@
 from collections import UserDict
 from datetime import datetime
+import pickle
 
 
 class Field:
@@ -60,14 +61,14 @@ class Record:
         if not name:
             raise ValueError("Name is required.")
         self.name = Name(name)
-        self.fields = {"phones": [], "emails": [], "birthday": []}
+        self.fields = {"phones": [], "emails": []}
         if birthday:
             self.add_field("birthday", birthday)
 
     def add_field(self, field_type, value):
         if field_type in self.fields and field_type in self.FIELD_CLASSES:
             field_class = self.FIELD_CLASSES[field_type]
-            self.fields[field_type].append(field_class(value))
+            self.fields[field_type] = field_class(value)
 
     def remove_field(self, field_type, value):
         if field_type in self.fields:
@@ -107,6 +108,14 @@ class AddressBook(UserDict):
                 matching_records.append(record)
         return matching_records
 
+    def save_to_file(self, filename):
+        with open(filename, "wb") as file:
+            pickle.dump(self.data, file)
+
+    def load_from_file(filename):
+        with open(filename, "rb") as file:
+            pickle.load(file)
+
     def __iter__(self):
         self._iter_index = 0
         return self
@@ -118,3 +127,12 @@ class AddressBook(UserDict):
             return record
         else:
             raise StopIteration
+
+    def search(self, query):
+        criteria = {
+            "name": query,
+            "phones": query,
+            "emails": query,
+            "birthday": query,
+        }
+        return self.search_records(criteria)
