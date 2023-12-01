@@ -61,7 +61,7 @@ class Record:
         if not name:
             raise ValueError("Name is required.")
         self.name = Name(name)
-        self.fields = {"phones": [], "emails": []}
+        self.fields = {"phones": [], "emails": [], "birthday": []}
         if birthday:
             self.add_field("birthday", birthday)
 
@@ -98,10 +98,14 @@ class AddressBook(UserDict):
 
     def search_records(self, criteria):
         matching_records = []
-        for record in self.values():
+        for record in self.data.values():
             matches_criteria = any(
-                getattr(record, field, None) == criteria[field] or
-                any(f.value == criteria[field] for f in record.fields[field])
+                (field == 'name' and getattr(record.name, 'value', None) == criteria[field]) or
+                (field in record.fields and (
+                    (isinstance(record.fields[field], list) and any(criteria[field] in f.value for f in record.fields[field] if hasattr(f, 'value'))) or
+                    (not isinstance(
+                        record.fields[field], list) and criteria[field] in record.fields[field].value)
+                ))
                 for field in criteria.keys()
             )
             if matches_criteria:
@@ -112,9 +116,9 @@ class AddressBook(UserDict):
         with open(filename, "wb") as file:
             pickle.dump(self.data, file)
 
-    def load_from_file(filename):
+    def load_from_file(self, filename):
         with open(filename, "rb") as file:
-            pickle.load(file)
+            self.data = pickle.load(file)
 
     def __iter__(self):
         self._iter_index = 0
@@ -136,3 +140,36 @@ class AddressBook(UserDict):
             "birthday": query,
         }
         return self.search_records(criteria)
+
+
+if __name__ == "__main__":
+
+    address_book = AddressBook()
+
+    record1 = Record(name="Jan Kowalski", birthday="1990-05-15")
+    record1.add_field("phones", "123-456-7890")
+    record1.add_field("emails", "jan.kowalski@gmail.com")
+
+    record2 = Record(name="Zofia Nowak", birthday="1985-08-22")
+    record2.add_field("phones", "987-654-3210")
+    record2.add_field("emails", "zofia.nowak@gmail.com")
+
+    address_book.add_record(record1)
+    address_book.add_record(record2)
+
+    address_book.save_to_file("address_book.pkl")
+
+    loaded_address_book = AddressBook()
+    loaded_address_book.load_from_file("address_book.pkl")
+
+    print("Wszystkie rekordy w AddressBook:")
+    for record in address_book:
+        print(record.__dict__)
+
+    search_query = "Jan Kowalski"
+    my_data = loaded_address_book.search(search_query)
+
+    print(f"\nWyniki wyszukiwania dla \"{search_query}\":")
+    for result in my_data:
+        print(
+            f"Name: {result.name.value}, Birthday: {result.fields['birthday'].value}")
